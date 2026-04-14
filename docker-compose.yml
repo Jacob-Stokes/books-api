@@ -6,15 +6,10 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:3700:3000"
-    environment:
-      - LIBRARY_FICTION=/data/fiction
-      - LIBRARY_NONFICTION=/data/nonfiction
+    env_file:
+      - .env
     volumes:
       - books-api-keys:/data
-      - /root/docker-services/calibre-web/fiction/books:/data/fiction/books:ro
-      - /root/docker-services/calibre-web/fiction/config:/data/fiction/config:ro
-      - /root/docker-services/calibre-web/nonfiction/books:/data/nonfiction/books:ro
-      - /root/docker-services/calibre-web/nonfiction/config:/data/nonfiction/config:ro
 
 volumes:
   books-api-keys:
