@@ -9,7 +9,7 @@ const app = new Hono();
 // e.g. LIBRARY_FICTION=/data/fiction, LIBRARY_POETRY=/data/poetry
 // base_path must contain books/metadata.db and config/app.db
 // Optionally LIBRARY_<NAME>_URL=https://fiction.jacob.st for discovery by external apps
-const libraries: Record<string, { metadata: string; app: string; url: string | null }> = {};
+const libraries: Record<string, { metadata: string; app: string; books: string; url: string | null }> = {};
 
 for (const [key, value] of Object.entries(process.env)) {
   if (key.startsWith("LIBRARY_") && !key.endsWith("_URL") && value) {
@@ -18,6 +18,7 @@ for (const [key, value] of Object.entries(process.env)) {
     libraries[name] = {
       metadata: `${value}/books/metadata.db`,
       app: `${value}/config/app.db`,
+      books: `${value}/books`,
       url: process.env[urlKey] ?? null,
     };
   }
@@ -124,6 +125,18 @@ function libraryRoute(library: string) {
     db.close();
     if (!row) return c.json({ error: "Book not found" }, 404);
     return c.json(formatBook(row));
+  });
+
+  router.get("/books/:id/cover", async (c) => {
+    const db = getDb(library);
+    const book = db.query("SELECT path, has_cover FROM books WHERE id = ?").get(parseInt(c.req.param("id"))) as any;
+    db.close();
+    if (!book) return c.json({ error: "Book not found" }, 404);
+    if (!book.has_cover) return c.json({ error: "No cover available" }, 404);
+    const coverPath = `${libraries[library].books}/${book.path}/cover.jpg`;
+    const file = Bun.file(coverPath);
+    if (!(await file.exists())) return c.json({ error: "Cover file not found" }, 404);
+    return new Response(file, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=86400" } });
   });
 
   router.get("/authors", (c) => {
