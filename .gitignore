@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+bun.lockb
+
+# Runtime data (mounted as volumes)
+/data/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
