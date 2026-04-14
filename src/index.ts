@@ -65,6 +65,19 @@ const BOOK_QUERY = `
 `;
 
 function formatBook(row: any, libraryUrl: string | null = null) {
+  const formats: string[] = row.formats ? row.formats.split(",") : [];
+  const hasEpub = formats.some((f) => f.toUpperCase() === "EPUB");
+
+  const urls = libraryUrl
+    ? {
+        web: `${libraryUrl}/book/${row.id}`,
+        read: hasEpub ? `${libraryUrl}/read/${row.id}/epub` : null,
+        download: Object.fromEntries(
+          formats.map((f) => [f, `${libraryUrl}/download/${row.id}/${f}`])
+        ),
+      }
+    : null;
+
   return {
     id: row.id,
     title: row.title,
@@ -74,13 +87,13 @@ function formatBook(row: any, libraryUrl: string | null = null) {
     series_index: row.series_index,
     publisher: row.publisher || null,
     description: row.description || null,
-    formats: row.formats ? row.formats.split(",") : [],
+    formats,
     pubdate: row.pubdate,
     added: row.added,
     has_cover: Boolean(row.has_cover),
     uuid: row.uuid,
     path: row.path,
-    web_url: libraryUrl ? `${libraryUrl}/book/${row.id}` : null,
+    urls,
   };
 }
 
