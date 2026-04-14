@@ -73,7 +73,10 @@ function formatBook(row: any, libraryUrl: string | null = null) {
         web: `${libraryUrl}/book/${row.id}`,
         read: hasEpub ? `${libraryUrl}/read/${row.id}/epub` : null,
         download: Object.fromEntries(
-          formats.map((f) => [f, `${libraryUrl}/download/${row.id}/${f}`])
+          formats.map((f) => {
+            const fl = f.toLowerCase().replace("kepub", "kepub.epub");
+            return [f, `${libraryUrl}/download/${row.id}/${fl}/${row.id}.${fl}`];
+          })
         ),
       }
     : null;
