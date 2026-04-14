@@ -8,14 +8,17 @@ const app = new Hono();
 // Libraries are driven by LIBRARY_<NAME>=<base_path> env vars
 // e.g. LIBRARY_FICTION=/data/fiction, LIBRARY_POETRY=/data/poetry
 // base_path must contain books/metadata.db and config/app.db
-const libraries: Record<string, { metadata: string; app: string }> = {};
+// Optionally LIBRARY_<NAME>_URL=https://fiction.jacob.st for discovery by external apps
+const libraries: Record<string, { metadata: string; app: string; url: string | null }> = {};
 
 for (const [key, value] of Object.entries(process.env)) {
-  if (key.startsWith("LIBRARY_") && value) {
+  if (key.startsWith("LIBRARY_") && !key.endsWith("_URL") && value) {
     const name = key.replace("LIBRARY_", "").toLowerCase();
+    const urlKey = `LIBRARY_${name.toUpperCase()}_URL`;
     libraries[name] = {
       metadata: `${value}/books/metadata.db`,
       app: `${value}/config/app.db`,
+      url: process.env[urlKey] ?? null,
     };
   }
 }
@@ -191,9 +194,14 @@ api.use("*", async (c, next) => {
   return next();
 });
 
-// Health check — no auth needed, verifies API is up
+// Health check — no auth needed, verifies API is up and exposes library metadata
 api.get("/health", (c) =>
-  c.json({ status: "ok", libraries: Object.keys(libraries) })
+  c.json({
+    status: "ok",
+    libraries: Object.fromEntries(
+      Object.entries(libraries).map(([name, lib]) => [name, { url: lib.url }])
+    ),
+  })
 );
 
 // Dashboard stats — no auth, used by the UI
@@ -206,9 +214,9 @@ api.get("/dashboard/stats", (c) => {
       const authors = (db.query("SELECT COUNT(*) as n FROM authors").get() as any).n;
       const formats = db.query("SELECT format, COUNT(*) as count FROM data GROUP BY format ORDER BY count DESC").all();
       db.close();
-      result[name] = { status: "ok", total_books: total, total_authors: authors, formats };
+      result[name] = { status: "ok", url: libraries[name].url, total_books: total, total_authors: authors, formats };
     } catch (e) {
-      result[name] = { status: "error", error: String(e) };
+      result[name] = { status: "error", url: libraries[name].url, error: String(e) };
     }
   }
   return c.json(result);
