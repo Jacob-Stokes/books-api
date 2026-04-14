@@ -466,16 +466,19 @@ export function renderUI(): string {
       { path: '/stats',             desc: 'Library stats',        hint: '' },
     ];
 
-    let libraries = [];
+    let libraries = [];    // array of names
+    let libraryMeta = {}; // name -> { url }
     let activeTab = 'url';
 
     async function init() {
       try {
         const res = await fetch(BASE + '/health');
         const data = await res.json();
-        libraries = data.libraries || [];
+        libraryMeta = data.libraries || {};
+        libraries = Object.keys(libraryMeta);
       } catch {
         libraries = [];
+        libraryMeta = {};
       }
 
       const libSel = document.getElementById('library-select');
@@ -594,12 +597,19 @@ export function renderUI(): string {
 
       // Pre-create cards
       for (const lib of libraries) {
+        const meta = libraryMeta[lib] || {};
+        const urlLink = meta.url
+          ? \`<a href="\${meta.url}" target="_blank" rel="noopener" style="font-size:0.75rem;color:#7dd3fc;text-decoration:none;opacity:0.8" title="\${meta.url}">↗ Open</a>\`
+          : '';
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = \`
           <div class="card-header">
             <span class="card-title">\${lib}</span>
-            <span class="badge badge-green" id="badge-\${lib}">Connected</span>
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              \${urlLink}
+              <span class="badge badge-green" id="badge-\${lib}">Connected</span>
+            </div>
           </div>
           <div id="stats-\${lib}" class="loading">Loading...</div>
         \`;
