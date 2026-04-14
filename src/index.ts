@@ -64,7 +64,7 @@ const BOOK_QUERY = `
   GROUP BY b.id
 `;
 
-function formatBook(row: any) {
+function formatBook(row: any, libraryUrl: string | null = null) {
   return {
     id: row.id,
     title: row.title,
@@ -80,11 +80,13 @@ function formatBook(row: any) {
     has_cover: Boolean(row.has_cover),
     uuid: row.uuid,
     path: row.path,
+    web_url: libraryUrl ? `${libraryUrl}/book/${row.id}` : null,
   };
 }
 
 function libraryRoute(library: string) {
   const router = new Hono();
+  const libUrl = libraries[library].url;
 
   router.get("/books", (c) => {
     const db = getDb(library);
@@ -99,7 +101,7 @@ function libraryRoute(library: string) {
     const rows = db.query(`${BOOK_QUERY} ORDER BY ${sortCol} ${order} LIMIT ? OFFSET ?`).all(limit, offset);
     const total = (db.query("SELECT COUNT(*) as count FROM books").get() as any).count;
     db.close();
-    return c.json({ total, limit, offset, books: rows.map(formatBook) });
+    return c.json({ total, limit, offset, books: rows.map((r: any) => formatBook(r, libUrl)) });
   });
 
   router.get("/books/search", (c) => {
@@ -108,7 +110,7 @@ function libraryRoute(library: string) {
     const db = getDb(library);
     const rows = db.query(`${BOOK_QUERY} HAVING b.title LIKE ? OR authors LIKE ? ORDER BY b.title ASC`).all(`%${q}%`, `%${q}%`);
     db.close();
-    return c.json({ query: q, count: rows.length, books: rows.map(formatBook) });
+    return c.json({ query: q, count: rows.length, books: rows.map((r: any) => formatBook(r, libUrl)) });
   });
 
   router.get("/books/recent", (c) => {
@@ -116,7 +118,7 @@ function libraryRoute(library: string) {
     const db = getDb(library);
     const rows = db.query(`${BOOK_QUERY} ORDER BY b.timestamp DESC LIMIT ?`).all(limit);
     db.close();
-    return c.json({ books: rows.map(formatBook) });
+    return c.json({ books: rows.map((r: any) => formatBook(r, libUrl)) });
   });
 
   router.get("/books/:id", (c) => {
@@ -124,7 +126,7 @@ function libraryRoute(library: string) {
     const row = db.query(`${BOOK_QUERY} HAVING b.id = ?`).get(parseInt(c.req.param("id")));
     db.close();
     if (!row) return c.json({ error: "Book not found" }, 404);
-    return c.json(formatBook(row));
+    return c.json(formatBook(row, libUrl));
   });
 
   router.get("/books/:id/cover", async (c) => {
@@ -152,7 +154,7 @@ function libraryRoute(library: string) {
     if (!author) { db.close(); return c.json({ error: "Author not found" }, 404); }
     const rows = db.query(`${BOOK_QUERY} HAVING bal.author = ? ORDER BY b.title ASC`).all(parseInt(c.req.param("id")));
     db.close();
-    return c.json({ author, count: rows.length, books: rows.map(formatBook) });
+    return c.json({ author, count: rows.length, books: rows.map((r: any) => formatBook(r, libUrl)) });
   });
 
   router.get("/series", (c) => {
@@ -168,7 +170,7 @@ function libraryRoute(library: string) {
     if (!series) { db.close(); return c.json({ error: "Series not found" }, 404); }
     const rows = db.query(`${BOOK_QUERY} HAVING bsl.series = ? ORDER BY b.series_index ASC`).all(parseInt(c.req.param("id")));
     db.close();
-    return c.json({ series, count: rows.length, books: rows.map(formatBook) });
+    return c.json({ series, count: rows.length, books: rows.map((r: any) => formatBook(r, libUrl)) });
   });
 
   router.get("/tags", (c) => {
